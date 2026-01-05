@@ -1,3 +1,5 @@
+from fit_data import get_historic_data
+
 import numpy as np
 import scipy.optimize
 from collections.abc import Callable
@@ -29,28 +31,16 @@ def _gas_usage(day: float, s1, s2, s3, s4, c1, c2, c3, c4, offset) -> float:
     return seasonal + offset
 
 
-def get_gas_usage_function(data_source: str = "HISTORIC_2024", verbose: bool = False, plot: bool = False ) -> Callable[[float], float]:
-    """Returns a fitted gas usage function based on the specified data source.
+def fit_gas_usage_function(share_per_month: np.ndarray, verbose: bool = False, plot: bool = False ) -> Callable[[float], float]:
+    """Returns a fitted gas usage function based on the provided data of monthly gas usage shares.
 
     Parameters:
-    data_source (str): The data source to use for fitting. Options are "DIN" or "HISTORIC_2024".
+    share_per_month: The monthly share of gas usage to use for fitting.
     verbose (bool): If True, prints detailed fitting information.
     plot (bool): If True, generates plots of the fitted function and residuals.
 
     Returns:
     Callable[[float], float]: A function that takes a day of the year and returns the fitted gas usage (as yearly share per day). The function is periodic over [0, 365).  """
-
-    if data_source =="DIN":
-        # share of average gas usage / heating costs per month
-        # German "Gradtagszahlentabelle" according to DIN 4713
-        # https://de.wikipedia.org/wiki/DIN_4713
-        share_per_month = np.array([170,150,130,80,40,40/3,40/3,40/3,30,80,120,160])
-        share_per_month /= 1000
-    elif data_source == "HISTORIC_2024":
-        # gas usage for households in Germany 2024
-        # https://www.smard.de/page/home/topic-article/211972/214592/gasverbrauch
-        share_per_month = np.array([1191,1085,987,686,309,151,143,143,158,452,980,1259])
-        share_per_month = share_per_month / share_per_month.sum()
 
     def residuals(coefficients: np.ndarray) -> np.ndarray:
         res = np.zeros(12)
@@ -97,7 +87,7 @@ def get_gas_usage_function(data_source: str = "HISTORIC_2024", verbose: bool = F
 
 if __name__ == "__main__":
 
-    fitted_gas_usage = get_gas_usage_function("HISTORIC_2024", verbose=True, plot=True)
+    fitted_gas_usage = fit_gas_usage_function(get_historic_data(2024), verbose=True, plot=True)
 
 
 
