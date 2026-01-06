@@ -1,50 +1,46 @@
 from user_input import get_parsed_usage_data, GasUsageEntry
 from fit_data import get_historic_data
-from gas_usage_functions import fit_gas_usage_function
+from gas_usage_functions import fit_gas_usage_function, cumulative_integral_between_days
 
-
-def split_usage_data_into_years(usage_data) -> list[list[GasUsageEntry]]:
-    """
-    Splits usage data into multiple lists if data spans multiple years (defined by duration not calendar years as heating periods usually span from autumn to spring).
-    
-    Parameters:
-        usage_data (List[GasUsageEntry]): List of gas usage entries.
-
-    Returns:
-        List[List[GasUsageEntry]]: A list of lists, each containing gas usage entries spanning <= 365 days.
-    """
-    if not usage_data:
-        return []
-
-    split_data = []
-    current_year = [usage_data[0]]
-    start_of_current_year = usage_data[0]
-
-    for entry in usage_data[1:]:
-        if ((entry.year - start_of_current_year.year) * 365 + (entry.day_of_year - start_of_current_year.day_of_year)) <= 365:
-            current_year.append(entry)
-        else:
-            split_data.append(current_year)
-            current_year = [entry]
-            start_of_current_year = entry
-
-    if current_year:
-        split_data.append(current_year)
-
-    return split_data
-
-    
+from dataclasses import dataclass
+import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
     #get user data
-    usage_data = get_parsed_usage_data()
-    split_usage_data = split_usage_data_into_years(usage_data)
+    usage_data = get_parsed_usage_data("example_usage_data.txt")
     
     # get gas usage function
     gas_usage_function = fit_gas_usage_function(get_historic_data(2024))
+    yearly_integral = cumulative_integral_between_days(gas_usage_function, 0, 365)
 
-    def scaled_gas_usage_function(day: float, total_usage: float) -> float:
-        return gas_usage_function(day) * total_usage
+    # for each pair of consecutive entries, calculate the scaling factor between gas usage function (yearly integral ~ 1) and user data
+    scaling_factors = []
+    for i in range(1, len(usage_data)):
+        start_entry = usage_data[i-1]
+        end_entry = usage_data[i]
+        
+        # integral of gas usage function over the period
+        integral = cumulative_integral_between_days(gas_usage_function, start_entry.day, end_entry.day)
 
-    print(usage_data)
-    
+        if integral == 0:
+            raise ValueError(f"Integral is zero between days {start_entry.day} and {end_entry.day}. Input data should not contain more than one entry per date. Please check input data and gas_usage_function.")
+        
+        user_usage = end_entry.usage - start_entry.usage
+        scaling_factor = user_usage / (integral / yearly_integral)
+        scaling_factors.append(scaling_factor)
+
+
+    average_scaling = sum(scaling_factors) / len(scaling_factors)
+    standard_deviation = (sum((x - average_scaling) ** 2 for x in scaling_factors) / len(scaling_factors)) ** 0.5
+    print(f"Fitted average gas usage (unit depends on input data): {average_scaling:.0f} ± {standard_deviation:.0f}")
+
+ 
+    plt.figure()
+    plt.plot(scaling_factors, marker='o', linestyle='-', label='Scaling Factors')
+    plt.axhline(y=sum(scaling_factors)/len(scaling_factors), color='r', linestyle='--', label='Average Scaling Factor')
+    plt.xlabel('Index')
+    plt.ylabel('Scaling Factor (m³ or kWh)')
+    plt.xticks(range(len(scaling_factors)))
+    plt.title('Scaling Factors Between Consecutive Gas Usage Entries')
+    plt.legend()
+    plt.show()
