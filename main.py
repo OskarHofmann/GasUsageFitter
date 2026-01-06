@@ -37,7 +37,7 @@ if __name__ == "__main__":
  
     plt.figure()
     plt.plot(scaling_factors, marker='o', linestyle='-', label='Scaling Factors')
-    plt.axhline(y=sum(scaling_factors)/len(scaling_factors), color='r', linestyle='--', label='Average Scaling Factor')
+    plt.axhline(y=average_scaling, color='r', linestyle='--', label='Average Scaling Factor')
     plt.xlabel('Index')
     plt.ylabel('Scaling Factor (m³ or kWh)')
     plt.xticks(range(len(scaling_factors)))
