@@ -5,28 +5,37 @@ import scipy.optimize
 from collections.abc import Callable
 import matplotlib.pyplot as plt
 
-days_per_month = np.array([31,28,31,30,31,30,31,31,30,31,30,31]) # assuming non-leap year
-days_per_year = days_per_month.sum()
+DAYS_PER_MONTH = np.array([31,28,31,30,31,30,31,31,30,31,30,31]) # assuming non-leap year
+DAYS_PER_YEAR = DAYS_PER_MONTH.sum()
 
 months = range(12)
 
-def _integral_over_month(func: Callable[[int],float], month: int, days_per_month: np.ndarray) -> None:
+def _integral_over_month(func: Callable[[int],float], month: int, days_per_month: np.ndarray) -> float:
     """Calculates the integral of a function of days over a specified month."""
     first_day = days_per_month[:month].sum() + 1
     last_day = days_per_month[:month+1].sum() + 1
     return np.trapz(np.array([func(x) for x in np.arange(first_day,last_day+1)]))
 
-def _cumulative_integral_up_to_month(func: Callable[[int],float], month: int, days_per_month: np.ndarray) -> None:
+def _cumulative_integral_up_to_month(func: Callable[[int],float], month: int, days_per_month: np.ndarray) -> float:
     """Calculates the cumulative integral of a function of days up to the end of a specified month."""
     last_day = days_per_month[:month+1].sum() + 1
     return np.trapz(np.array([func(x) for x in np.arange(1,last_day+1)]))
 
-# Model function for gas usage
-# may lead to small "bump" in summer months due to higher order terms but overall fits well
+def cumulative_integral_between_days(func: Callable[[int],float], start_day: int, end_day: int) -> float:
+    """Calculates the cumulative integral of a function of days between two specified days."""
+    if end_day < start_day:
+        raise ValueError("end_day must be greater than or equal to start_day")
+    
+    integral = 0.0
+    while end_day > DAYS_PER_YEAR:
+        end_day -= DAYS_PER_YEAR
+        integral += _cumulative_integral_up_to_month(func, 11, DAYS_PER_MONTH)
+    return np.trapz(np.array([func(x) for x in np.arange(start_day,end_day+1)]))
+
 def _gas_usage(day: float, s1, s2, s3, s4, c1, c2, c3, c4, offset) -> float:
-    """Model function for gas usage as a function of day of the year."""
-    seasonal = s1 * np.sin(2 * np.pi * day / days_per_year) + s2 * np.sin(4 * np.pi * day / days_per_year) + s3 * np.sin(6 * np.pi * day / days_per_year) + s4 * np.sin(8 * np.pi * day / days_per_year)
-    seasonal += c1 * np.cos(2 * np.pi * day / days_per_year) + c2 * np.cos(4 * np.pi * day / days_per_year) + c3 * np.cos(6 * np.pi * day / days_per_year) + c4 * np.cos(8 * np.pi * day / days_per_year)
+    """Model function for gas usage as a function of day of the year. May lead to small "bump" in summer months due to higher order terms but overall fits well."""
+    seasonal = s1 * np.sin(2 * np.pi * day / DAYS_PER_YEAR) + s2 * np.sin(4 * np.pi * day / DAYS_PER_YEAR) + s3 * np.sin(6 * np.pi * day / DAYS_PER_YEAR) + s4 * np.sin(8 * np.pi * day / DAYS_PER_YEAR)
+    seasonal += c1 * np.cos(2 * np.pi * day / DAYS_PER_YEAR) + c2 * np.cos(4 * np.pi * day / DAYS_PER_YEAR) + c3 * np.cos(6 * np.pi * day / DAYS_PER_YEAR) + c4 * np.cos(8 * np.pi * day / DAYS_PER_YEAR)
 
     return seasonal + offset
 
@@ -45,7 +54,7 @@ def fit_gas_usage_function(share_per_month: np.ndarray, verbose: bool = False, p
     def residuals(coefficients: np.ndarray) -> np.ndarray:
         res = np.zeros(12)
         for month in months:
-            integral = _integral_over_month(lambda x: _gas_usage(x, *coefficients), month, days_per_month)
+            integral = _integral_over_month(lambda x: _gas_usage(x, *coefficients), month, DAYS_PER_MONTH)
             res[month] = integral - share_per_month[month]
         return res
 
@@ -59,10 +68,10 @@ def fit_gas_usage_function(share_per_month: np.ndarray, verbose: bool = False, p
          # Print share per months based on fitted function and compare to original shares
         print("Month | Original Share | Fitted Share")
         for month in months:
-            fitted_share = _integral_over_month(fitted_gas_usage, month, days_per_month)
+            fitted_share = _integral_over_month(fitted_gas_usage, month, DAYS_PER_MONTH)
             print(f"{month+1:5d} | {share_per_month[month]:14.6f} | {fitted_share:12.6f}")
         print("\nRemaining squared residuals:", np.sum(residuals(popt)**2))
-        print("\nYearly integral of fitted function:", _cumulative_integral_up_to_month(fitted_gas_usage, 11, days_per_month))
+        print("\nYearly integral of fitted function:", _cumulative_integral_up_to_month(fitted_gas_usage, 11, DAYS_PER_MONTH))
     
     if plot:
         # plot residuals
@@ -74,7 +83,7 @@ def fit_gas_usage_function(share_per_month: np.ndarray, verbose: bool = False, p
         plt.show()
 
         # plot fitted function over the year
-        days = np.arange(1, days_per_year + 1)
+        days = np.arange(1, DAYS_PER_YEAR + 1)
         fitted_values = [fitted_gas_usage(day) for day in days]
         plt.plot(days, fitted_values)
         plt.xlabel("Day of Year")
