@@ -1,6 +1,6 @@
 from libs.user_input import get_parsed_usage_data, GasUsageEntry
 from libs.fit_data import get_historic_data
-from libs.gas_usage_functions import fit_gas_usage_function, cumulative_integral_between_days
+from libs.gas_usage_functions import fit_gas_usage_function, integral_between_days
 
 from dataclasses import dataclass
 import matplotlib.pyplot as plt
@@ -11,7 +11,7 @@ if __name__ == "__main__":
     
     # get gas usage function
     gas_usage_function = fit_gas_usage_function(get_historic_data(2024))
-    yearly_integral = cumulative_integral_between_days(gas_usage_function, 0, 365)
+    yearly_integral = integral_between_days(gas_usage_function, 0, 365)
 
     # for each pair of consecutive entries, calculate the scaling factor between gas usage function (yearly integral ~ 1) and user data
     yearly_usage_guesses = []
@@ -20,7 +20,7 @@ if __name__ == "__main__":
         end_entry = usage_data[i]
         
         # integral of gas usage function over the period
-        integral = cumulative_integral_between_days(gas_usage_function, start_entry.day, end_entry.day)
+        integral = integral_between_days(gas_usage_function, start_entry.day, end_entry.day)
 
         if integral == 0:
             raise ValueError(f"Integral is zero between days {start_entry.day} and {end_entry.day}. Input data should not contain more than one entry per date. Please check input data and gas_usage_function.")

@@ -21,15 +21,11 @@ def _cumulative_integral_up_to_month(func: Callable[[int],float], month: int, da
     last_day = days_per_month[:month+1].sum() + 1
     return np.trapz(np.array([func(x) for x in np.arange(1,last_day+1)]))
 
-def cumulative_integral_between_days(func: Callable[[int],float], start_day: int, end_day: int) -> float:
-    """Calculates the cumulative integral of a function of days between two specified days."""
+def integral_between_days(func: Callable[[int],float], start_day: int, end_day: int) -> float:
+    """Calculates the integral of a function of days between two specified days."""
     if end_day < start_day:
         raise ValueError("end_day must be greater than or equal to start_day")
     
-    integral = 0.0
-    while end_day > DAYS_PER_YEAR:
-        end_day -= DAYS_PER_YEAR
-        integral += _cumulative_integral_up_to_month(func, 11, DAYS_PER_MONTH)
     return np.trapz(np.array([func(x) for x in np.arange(start_day,end_day+1)]))
 
 def _gas_usage(day: float, s1, s2, s3, s4, c1, c2, c3, c4, offset) -> float:
