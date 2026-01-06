@@ -1,4 +1,4 @@
-from fit_data import get_historic_data
+from .fit_data import get_historic_data
 
 import numpy as np
 import scipy.optimize

@@ -1,6 +1,6 @@
-from user_input import get_parsed_usage_data, GasUsageEntry
-from fit_data import get_historic_data
-from gas_usage_functions import fit_gas_usage_function, cumulative_integral_between_days
+from libs.user_input import get_parsed_usage_data, GasUsageEntry
+from libs.fit_data import get_historic_data
+from libs.gas_usage_functions import fit_gas_usage_function, cumulative_integral_between_days
 
 from dataclasses import dataclass
 import matplotlib.pyplot as plt
@@ -14,7 +14,7 @@ if __name__ == "__main__":
     yearly_integral = cumulative_integral_between_days(gas_usage_function, 0, 365)
 
     # for each pair of consecutive entries, calculate the scaling factor between gas usage function (yearly integral ~ 1) and user data
-    scaling_factors = []
+    yearly_usage_guesses = []
     for i in range(1, len(usage_data)):
         start_entry = usage_data[i-1]
         end_entry = usage_data[i]
@@ -26,21 +26,21 @@ if __name__ == "__main__":
             raise ValueError(f"Integral is zero between days {start_entry.day} and {end_entry.day}. Input data should not contain more than one entry per date. Please check input data and gas_usage_function.")
         
         user_usage = end_entry.usage - start_entry.usage
-        scaling_factor = user_usage / (integral / yearly_integral)
-        scaling_factors.append(scaling_factor)
+        yearly_usage_guess = user_usage / (integral / yearly_integral)
+        yearly_usage_guesses.append(yearly_usage_guess)
 
 
-    average_scaling = sum(scaling_factors) / len(scaling_factors)
-    standard_deviation = (sum((x - average_scaling) ** 2 for x in scaling_factors) / len(scaling_factors)) ** 0.5
-    print(f"Fitted average gas usage (unit depends on input data): {average_scaling:.0f} ± {standard_deviation:.0f}")
+    yearly_usage_best_fit = sum(yearly_usage_guesses) / len(yearly_usage_guesses)
+    standard_deviation = (sum((x - yearly_usage_best_fit) ** 2 for x in yearly_usage_guesses) / len(yearly_usage_guesses)) ** 0.5
+    print(f"Fitted average gas usage (unit depends on input data): {yearly_usage_best_fit:.0f} ± {standard_deviation:.0f}")
 
  
     plt.figure()
-    plt.plot(scaling_factors, marker='o', linestyle='-', label='Scaling Factors')
-    plt.axhline(y=average_scaling, color='r', linestyle='--', label='Average Scaling Factor')
+    plt.plot(yearly_usage_guesses, marker='o', linestyle='-', label='Yearly Gas Usage Guesses')
+    plt.axhline(y=yearly_usage_best_fit, color='r', linestyle='--', label='Best Fit Yearly Usage')
     plt.xlabel('Index')
-    plt.ylabel('Scaling Factor (m³ or kWh)')
-    plt.xticks(range(len(scaling_factors)))
-    plt.title('Scaling Factors Between Consecutive Gas Usage Entries')
+    plt.ylabel('Yearly Usage (m³ or kWh)')
+    plt.xticks(range(len(yearly_usage_guesses)))
+    plt.title('Gas Usage Fit')
     plt.legend()
     plt.show()
